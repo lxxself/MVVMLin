@@ -2,51 +2,47 @@ package com.pcl.mvvm.ui.home
 
 import android.content.Intent
 import android.os.Bundle
-import android.view.View
 import android.view.ViewGroup
 import android.view.ViewGroup.LayoutParams.MATCH_PARENT
-import androidx.databinding.ViewDataBinding
-import androidx.lifecycle.Observer
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.aleyn.mvvm.base.BaseFragment
-import com.blankj.utilcode.util.BarUtils
 import com.pcl.mvvm.R
+import com.pcl.mvvm.databinding.HomeFragmentBinding
 import com.pcl.mvvm.network.entity.ArticlesBean
+import com.pcl.mvvm.network.entity.BannerBean
 import com.pcl.mvvm.ui.detail.DetailActivity
 import com.pcl.mvvm.utils.GlideImageLoader
-import com.stx.xhb.androidx.XBanner
-import kotlinx.android.synthetic.main.home_fragment.*
+import com.youth.banner.Banner
 
 /**
+ * 此页面使用 ViewBinding
  *   @auther : Aleyn
  *   time   : 2019/11/02
  */
-class HomeFragment : BaseFragment<HomeViewModel, ViewDataBinding>() {
+class HomeFragment : BaseFragment<HomeViewModel, HomeFragmentBinding>() {
 
     private val mAdapter by lazy { HomeListAdapter() }
     private var page: Int = 0
-    private lateinit var banner: XBanner
+    private lateinit var banner: Banner<BannerBean, GlideImageLoader>
 
     companion object {
         fun newInstance() = HomeFragment()
     }
 
-    override fun layoutId() = R.layout.home_fragment
-
     override fun initView(savedInstanceState: Bundle?) {
-        with(rv_home) {
+        with(mBinding.rvHome) {
             layoutManager = LinearLayoutManager(context)
             adapter = mAdapter
             //banner
-            banner = XBanner(context)
+            banner = Banner(context)
             banner.minimumWidth = MATCH_PARENT
             banner.layoutParams =
                 ViewGroup.LayoutParams(MATCH_PARENT, resources.getDimension(R.dimen.dp_120).toInt())
-            banner.loadImage(GlideImageLoader())
+            banner.adapter = GlideImageLoader()
         }
         mAdapter.apply {
             addHeaderView(banner)
-            setOnLoadMoreListener(this@HomeFragment::loadMore, rv_home)
+            loadMoreModule.setOnLoadMoreListener(this@HomeFragment::loadMore)
             setOnItemClickListener { adapter, _, position ->
                 val item = adapter.data[position] as ArticlesBean
                 val intent = Intent(context, DetailActivity::class.java)
@@ -54,33 +50,39 @@ class HomeFragment : BaseFragment<HomeViewModel, ViewDataBinding>() {
                 startActivity(intent)
             }
         }
-        srl_home.setOnRefreshListener {
+        mBinding.srlHome.setOnRefreshListener {
             dropDownRefresh()
         }
     }
 
     override fun lazyLoadData() {
         viewModel.run {
-            getBanner()
-            viewModel.getHomeList(page)
+
+            getBanner().observe(this@HomeFragment, {
+                banner.setDatas(it)
+            })
+
+            getHomeList(page).observe(this@HomeFragment, {
+                if (mBinding.srlHome.isRefreshing) mBinding.srlHome.isRefreshing = false
+                it?.let {
+                    if (it.curPage == 1) mAdapter.setNewInstance(it.datas)
+                    else mAdapter.addData(it.datas)
+                    if (it.curPage == it.pageCount) mAdapter.loadMoreModule.loadMoreEnd()
+                    else mAdapter.loadMoreModule.loadMoreComplete()
+                    page = it.curPage
+                }
+            })
         }
-        viewModel.mBanners.observe(this, Observer {
-            banner.setBannerData(it)
-        })
-        viewModel.projectData.observe(this, Observer {
-            if (srl_home.isRefreshing) srl_home.isRefreshing = false
-            if (it.curPage == 1) mAdapter.setNewData(it.datas)
-            else mAdapter.addData(it.datas)
-            if (it.curPage == it.pageCount) mAdapter.loadMoreEnd()
-            else mAdapter.loadMoreComplete()
-            page = it.curPage
-        })
     }
 
+    /**
+     * 下拉刷新
+     */
     private fun dropDownRefresh() {
         page = 0
-        srl_home.isRefreshing = true
-        viewModel.getHomeList(page)
+        mBinding.srlHome.isRefreshing = true
+        viewModel.getHomeList(page, true)
+        viewModel.getBanner(true)
     }
 
     /**

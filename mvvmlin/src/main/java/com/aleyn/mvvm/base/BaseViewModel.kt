@@ -1,11 +1,12 @@
 package com.aleyn.mvvm.base
 
+import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.LifecycleObserver
 import androidx.lifecycle.viewModelScope
+import com.aleyn.mvvm.app.MVVMLin
 import com.aleyn.mvvm.event.Message
 import com.aleyn.mvvm.event.SingleLiveEvent
-import com.aleyn.mvvm.network.ExceptionHandle
 import com.aleyn.mvvm.network.ResponseThrowable
 import com.blankj.utilcode.util.Utils
 import kotlinx.coroutines.*
@@ -16,7 +17,9 @@ import kotlinx.coroutines.flow.flow
  *   @auther : Aleyn
  *   time   : 2019/11/01
  */
-open class BaseViewModel : AndroidViewModel(Utils.getApp()), LifecycleObserver {
+open class BaseViewModel(
+    application: Application = Utils.getApp()
+) : AndroidViewModel(application), LifecycleObserver {
 
     val defUI: UIChange by lazy { UIChange() }
 
@@ -83,51 +86,20 @@ open class BaseViewModel : AndroidViewModel(Utils.getApp()), LifecycleObserver {
         if (isShowDialog) defUI.showDialog.call()
         launchUI {
             handleException(
-                { withContext(Dispatchers.IO) { block() } },
-                { res ->
-                    executeResponse(res) { success(it) }
-                },
                 {
-                    error(it)
+                    withContext(Dispatchers.IO) {
+                        block().let {
+                            if (it.isSuccess()) it.data()
+                            else throw ResponseThrowable(it.code(), it.msg())
+                        }
+                    }.also { success(it) }
                 },
+                { error(it) },
                 {
                     defUI.dismissDialog.call()
                     complete()
                 }
             )
-        }
-    }
-
-    /**
-     * 请求结果过滤
-     */
-    private suspend fun <T> executeResponse(
-        response: IBaseResponse<T>,
-        success: suspend CoroutineScope.(T) -> Unit
-    ) {
-        coroutineScope {
-            if (response.isSuccess()) success(response.data())
-            else throw ResponseThrowable(response.code(), response.msg())
-        }
-    }
-
-    /**
-     * 异常统一处理
-     */
-    private suspend fun <T> handleException(
-        block: suspend CoroutineScope.() -> IBaseResponse<T>,
-        success: suspend CoroutineScope.(IBaseResponse<T>) -> Unit,
-        error: suspend CoroutineScope.(ResponseThrowable) -> Unit,
-        complete: suspend CoroutineScope.() -> Unit
-    ) {
-        coroutineScope {
-            try {
-                success(block())
-            } catch (e: Throwable) {
-                error(ExceptionHandle.handleException(e))
-            } finally {
-                complete()
-            }
         }
     }
 
@@ -144,7 +116,7 @@ open class BaseViewModel : AndroidViewModel(Utils.getApp()), LifecycleObserver {
             try {
                 block()
             } catch (e: Throwable) {
-                error(ExceptionHandle.handleException(e))
+                error(MVVMLin.getConfig().globalExceptionHandle(e))
             } finally {
                 complete()
             }

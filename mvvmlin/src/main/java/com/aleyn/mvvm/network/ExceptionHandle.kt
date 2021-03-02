@@ -15,7 +15,9 @@ object ExceptionHandle {
 
     fun handleException(e: Throwable): ResponseThrowable {
         val ex: ResponseThrowable
-        if (e is HttpException) {
+        if (e is ResponseThrowable) {
+            ex = e
+        } else if (e is HttpException) {
             ex = ResponseThrowable(ERROR.HTTP_ERROR, e)
         } else if (e is JsonParseException
             || e is JSONException
@@ -31,7 +33,7 @@ object ExceptionHandle {
         } else if (e is java.net.UnknownHostException) {
             ex = ResponseThrowable(ERROR.TIMEOUT_ERROR, e)
         } else {
-            ex = if (e.message.isNullOrEmpty()) ResponseThrowable(1000, e.message!!, e)
+            ex = if (!e.message.isNullOrEmpty()) ResponseThrowable(1000, e.message!!, e)
             else ResponseThrowable(ERROR.UNKNOWN, e)
         }
         return ex

@@ -1,6 +1,7 @@
 package com.pcl.mvvm.network.entity
 
-import com.stx.xhb.androidx.entity.SimpleBannerInfo
+import androidx.room.Entity
+import androidx.room.PrimaryKey
 
 /**
  * @auther : Aleyn
@@ -22,17 +23,15 @@ import com.stx.xhb.androidx.entity.SimpleBannerInfo
  * type : 0
  * url : http://www.wanandroid.com/blog/show/2037
  */
+@Entity(tableName = "banner")
 data class BannerBean(
-    val desc: String,
+    @PrimaryKey
     val id: Int,
+    val desc: String,
     val imagePath: String,
     val isVisible: Int,
     val order: Int,
     val title: String,
     val type: Int,
     val url: String
-) : SimpleBannerInfo() {
-    override fun getXBannerUrl(): Any {
-        return imagePath
-    }
-}
+)

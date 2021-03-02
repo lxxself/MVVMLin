@@ -1,29 +1,26 @@
 package com.pcl.mvvm.ui
 
 import android.os.Bundle
-import androidx.appcompat.app.AppCompatActivity
 import androidx.fragment.app.Fragment
+import com.aleyn.mvvm.base.BaseActivity
+import com.aleyn.mvvm.base.NoViewModel
 import com.blankj.utilcode.util.BarUtils
+import com.blankj.utilcode.util.ColorUtils
+import com.blankj.utilcode.util.PermissionUtils
 import com.pcl.mvvm.R
-import com.pcl.mvvm.ui.project.ProjectFragment
+import com.pcl.mvvm.databinding.ActivityMainBinding
 import com.pcl.mvvm.ui.home.HomeFragment
 import com.pcl.mvvm.ui.me.MeFragment
-import kotlinx.android.synthetic.main.activity_main.*
+import com.pcl.mvvm.ui.project.ProjectFragment
 import me.majiajie.pagerbottomtabstrip.listener.OnTabItemSelectedListener
 
-@Suppress("DEPRECATION")
-class MainActivity : AppCompatActivity() {
+class MainActivity : BaseActivity<NoViewModel, ActivityMainBinding>() {
 
     private val fragments = ArrayList<Fragment>()
 
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_main)
-        BarUtils.setStatusBarColor(this, resources.getColor(R.color.colorPrimary))
-        initView()
-    }
 
-    private fun initView() {
+    override fun initView(savedInstanceState: Bundle?) {
+        BarUtils.setStatusBarColor(this, ColorUtils.getColor(R.color.colorPrimary))
         fragments.add(HomeFragment.newInstance())
         fragments.add(ProjectFragment.newInstance())
         fragments.add(MeFragment.newInstance())
@@ -32,7 +29,7 @@ class MainActivity : AppCompatActivity() {
             .replace(R.id.container, fragments[0])
             .commitNow()
 
-        val navCtl = page_navigation_view.material()
+        val navCtl = mBinding.pageNavigationView.material()
             .addItem(R.drawable.tab_shop_selected, "首页")
             .addItem(R.drawable.tab_car_selected, "项目")
             .addItem(R.drawable.tab_me_selected, "我的")
@@ -47,7 +44,20 @@ class MainActivity : AppCompatActivity() {
             override fun onRepeat(index: Int) {
             }
         })
+        PermissionUtils.permission(*PermissionUtils.getPermissions().toTypedArray())
+            .callback(object : PermissionUtils.FullCallback {
+                override fun onGranted(granted: MutableList<String>) {
 
+                }
+
+                override fun onDenied(
+                    forever: MutableList<String>, denied: MutableList<String>
+                ) {
+
+                }
+
+            })
+            .request()
     }
 
     private fun switchPage(index: Int, old: Int) {
@@ -60,5 +70,8 @@ class MainActivity : AppCompatActivity() {
             hide(fragments[old])
             commit()
         }
+    }
+
+    override fun initData() {
     }
 }
